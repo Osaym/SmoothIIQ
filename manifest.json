@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Osaym's SmoothIIQ",
-  "version": "1.1",
+  "version": "1.2",
   "description": "Optimizes IncidentIQ by disabling animations and caching asset data.",
   "permissions": [
     "storage" 
   ],
   "host_permissions": [
-    "*://*.incidentiq.com/*"
+    "*://*.incidentiq.com/*",
+    "https://api.github.com/*"
   ],
   "web_accessible_resources": [
     {

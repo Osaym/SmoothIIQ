@@ -1,4 +1,4 @@
-<!-- 2025 Osaym Omar -->
+<!-- 2026 Osaym Omar - SmoothIIQ Popup v1.2 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -52,6 +52,41 @@
       font-size: 11px;
       color: #94a3b8;
       margin-top: -2px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .update-notice {
+      width: 100%;
+      background: #fff7ed;
+      border: 1px solid #fdba74;
+      color: #9a3412;
+      border-radius: 8px;
+      padding: 10px;
+      box-sizing: border-box;
+      text-align: left;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .update-title {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .update-link {
+      display: inline-block;
+      margin-top: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #c2410c;
+      text-decoration: none;
+    }
+
+    .update-link:hover {
+      text-decoration: underline;
     }
 
     .message {
@@ -180,8 +215,14 @@
       <img class="logo" src="images/icon.png" alt="SmoothIIQ logo" />
       <h1 class="header">SmoothIIQ</h1>
     </div>
-    <div class="version">v1.19</div>
+    <div id="versionText" class="version">v-</div>
     <p class="message">You're all set!<br>SmoothIIQ is running!</p>
+
+    <div id="updateNotice" class="update-notice hidden">
+      <div class="update-title">Update Available</div>
+      <div id="updateText">A newer version is available.</div>
+      <a id="updateLink" class="update-link" href="#" target="_blank" rel="noopener noreferrer">Get latest version on GitHub</a>
+    </div>
     
     <button id="toggleButton" class="toggle-button">Pause Optimization</button>
     

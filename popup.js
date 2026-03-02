@@ -1,9 +1,17 @@
-// popup.js - v1.3.1 (Dark Mode Removed)
-// 2025 Osaym Omar
+// 2026 Osaym Omar - SmoothIIQ Popup v1.2
+
+const UPDATE_REPO_OWNER = 'osaym';
+const UPDATE_REPO_NAME = 'SmoothIIQ';
+const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const UPDATE_STORAGE_KEY = 'updateInfo';
+const FALLBACK_RELEASE_URL = `https://github.com/${UPDATE_REPO_OWNER}/${UPDATE_REPO_NAME}/releases/latest`;
 
 document.addEventListener('DOMContentLoaded', function() {
   const toggleButton = document.getElementById('toggleButton');
   const refreshButton = document.getElementById('refreshButton');
+
+  setInstalledVersionLabel();
+  initializeUpdateNotice();
 
   // 1. Initialize Toggle UI
   chrome.storage.local.get('isEnabled', function(data) {
@@ -23,6 +31,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (changes.lastSyncTime) {
       updateCacheStatus();
     }
+    if (changes[UPDATE_STORAGE_KEY]) {
+      renderUpdateNotice(changes[UPDATE_STORAGE_KEY].newValue);
+    }
   });
   
   chrome.storage.local.get('cacheStats', function(data) {
@@ -30,6 +41,8 @@ document.addEventListener('DOMContentLoaded', function() {
       renderStats(data.cacheStats);
     }
   });
+
+  checkForUpdates(false);
 
   // --- Handlers ---
 
@@ -69,6 +82,94 @@ document.addEventListener('DOMContentLoaded', function() {
       });
   }
 });
+
+function setInstalledVersionLabel() {
+  const versionEl = document.getElementById('versionText');
+  if (!versionEl) return;
+  versionEl.textContent = `v${chrome.runtime.getManifest().version}`;
+}
+
+function initializeUpdateNotice() {
+  chrome.storage.local.get(UPDATE_STORAGE_KEY, function(data) {
+    renderUpdateNotice(data[UPDATE_STORAGE_KEY]);
+  });
+}
+
+function renderUpdateNotice(updateInfo) {
+  const noticeEl = document.getElementById('updateNotice');
+  const textEl = document.getElementById('updateText');
+  const linkEl = document.getElementById('updateLink');
+
+  if (!noticeEl || !textEl || !linkEl) return;
+
+  if (!updateInfo || !updateInfo.isOutdated) {
+    noticeEl.classList.add('hidden');
+    return;
+  }
+
+  const latest = updateInfo.latestVersion ? `v${updateInfo.latestVersion}` : 'a newer version';
+  const installed = updateInfo.installedVersion ? `v${updateInfo.installedVersion}` : 'your current version';
+  textEl.textContent = `You're on ${installed}. Latest is ${latest}.`;
+  linkEl.href = updateInfo.releaseUrl || FALLBACK_RELEASE_URL;
+  noticeEl.classList.remove('hidden');
+}
+
+function normalizeVersion(versionString) {
+  if (!versionString) return '';
+  return String(versionString).trim().replace(/^v/i, '');
+}
+
+function compareVersions(left, right) {
+  const leftParts = normalizeVersion(left).split('.').map(n => parseInt(n, 10) || 0);
+  const rightParts = normalizeVersion(right).split('.').map(n => parseInt(n, 10) || 0);
+  const length = Math.max(leftParts.length, rightParts.length);
+
+  for (let i = 0; i < length; i++) {
+    const l = leftParts[i] || 0;
+    const r = rightParts[i] || 0;
+    if (l > r) return 1;
+    if (l < r) return -1;
+  }
+  return 0;
+}
+
+function checkForUpdates(force) {
+  chrome.storage.local.get(UPDATE_STORAGE_KEY, async function(data) {
+    const existingInfo = data[UPDATE_STORAGE_KEY] || null;
+    const now = Date.now();
+
+    if (!force && existingInfo && existingInfo.checkedAt && (now - existingInfo.checkedAt) < UPDATE_CHECK_INTERVAL_MS) {
+      renderUpdateNotice(existingInfo);
+      return;
+    }
+
+    try {
+      const response = await fetch(`https://api.github.com/repos/${UPDATE_REPO_OWNER}/${UPDATE_REPO_NAME}/releases/latest`);
+      if (!response.ok) throw new Error(`GitHub API failed: ${response.status}`);
+
+      const release = await response.json();
+      const installedVersion = normalizeVersion(chrome.runtime.getManifest().version);
+      const latestVersion = normalizeVersion(release.tag_name || release.name);
+      const isOutdated = !!latestVersion && compareVersions(latestVersion, installedVersion) > 0;
+
+      const updateInfo = {
+        checkedAt: now,
+        installedVersion,
+        latestVersion,
+        isOutdated,
+        releaseUrl: release.html_url || FALLBACK_RELEASE_URL
+      };
+
+      chrome.storage.local.set({ [UPDATE_STORAGE_KEY]: updateInfo }, function() {
+        renderUpdateNotice(updateInfo);
+      });
+    } catch (error) {
+      if (existingInfo) {
+        renderUpdateNotice(existingInfo);
+      }
+    }
+  });
+}
 
 function requestStatsUpdate() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {

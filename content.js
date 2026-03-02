@@ -1,4 +1,4 @@
-// 2025 Osaym Omar - SmoothIIQ Content Script v1.4 (Dark Mode Removed)
+// 2026 Osaym Omar - SmoothIIQ Content Script v1.2
 
 // 1. Initialize State
 chrome.storage.local.get('isEnabled', function(data) {
@@ -20,6 +20,8 @@ const script = document.createElement('script');
 script.src = chrome.runtime.getURL('cache_interceptor.js');
 script.onload = function() { this.remove(); };
 (document.head || document.documentElement).appendChild(script);
+
+maybeShowOutdatedToastOnRefresh();
 
 // 4. Message Handling
 window.addEventListener('message', function(event) {
@@ -66,7 +68,8 @@ function showCacheNotification(message, isLoading = true, duration = 0, progress
   if (!toast) {
     toast = document.createElement('div');
     toast.id = 'smoothiiq-toast';
-    document.body.appendChild(toast);
+    const toastTarget = document.body || document.documentElement;
+    toastTarget.appendChild(toast);
   }
 
   const showBars = progress >= 0 || subProgress >= 0;
@@ -129,4 +132,26 @@ function showCacheNotification(message, isLoading = true, duration = 0, progress
   if (duration > 0) {
     setTimeout(() => { toast.classList.remove('show'); }, duration);
   }
+}
+
+function maybeShowOutdatedToastOnRefresh() {
+  chrome.storage.local.get('updateInfo', function(data) {
+    const updateInfo = data.updateInfo;
+    if (!updateInfo || !updateInfo.isOutdated) return;
+
+    const latest = updateInfo.latestVersion ? `v${updateInfo.latestVersion}` : 'latest version';
+    const toastText = `SmoothIIQ is out of date (${latest} available)`;
+
+    const showToast = function() {
+      showCacheNotification(toastText, false, 3200);
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(showToast, 350);
+      }, { once: true });
+    } else {
+      setTimeout(showToast, 350);
+    }
+  });
 }
