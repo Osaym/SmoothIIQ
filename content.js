@@ -139,6 +139,11 @@ function maybeShowOutdatedToastOnRefresh() {
     const updateInfo = data.updateInfo;
     if (!updateInfo || !updateInfo.isOutdated) return;
 
+    const currentInstalledVersion = normalizeVersion(chrome.runtime.getManifest().version);
+    if (updateInfo.installedVersion && normalizeVersion(updateInfo.installedVersion) !== currentInstalledVersion) {
+      return;
+    }
+
     const latest = updateInfo.latestVersion ? `v${updateInfo.latestVersion}` : 'latest version';
     const toastText = `SmoothIIQ is out of date (${latest} available)`;
 
@@ -154,4 +159,9 @@ function maybeShowOutdatedToastOnRefresh() {
       setTimeout(showToast, 350);
     }
   });
+}
+
+function normalizeVersion(versionString) {
+  if (!versionString) return '';
+  return String(versionString).trim().replace(/^v/i, '');
 }

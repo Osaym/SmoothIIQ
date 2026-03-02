@@ -5,6 +5,7 @@ const UPDATE_REPO_NAME = 'SmoothIIQ';
 const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const UPDATE_STORAGE_KEY = 'updateInfo';
 const FALLBACK_RELEASE_URL = `https://github.com/${UPDATE_REPO_OWNER}/${UPDATE_REPO_NAME}/releases/latest`;
+const MANIFEST_API_URL = `https://api.github.com/repos/${UPDATE_REPO_OWNER}/${UPDATE_REPO_NAME}/contents/manifest.json?ref=main`;
 
 document.addEventListener('DOMContentLoaded', function() {
   const toggleButton = document.getElementById('toggleButton');
@@ -133,23 +134,58 @@ function compareVersions(left, right) {
   return 0;
 }
 
+function isVersionLike(value) {
+  return /^\d+(\.\d+){1,3}$/.test(normalizeVersion(value));
+}
+
+function extractVersionFromManifestContent(apiPayload) {
+  if (!apiPayload || !apiPayload.content) return '';
+  try {
+    const decoded = atob(String(apiPayload.content).replace(/\n/g, ''));
+    const parsed = JSON.parse(decoded);
+    return normalizeVersion(parsed.version);
+  } catch (error) {
+    return '';
+  }
+}
+
 function checkForUpdates(force) {
   chrome.storage.local.get(UPDATE_STORAGE_KEY, async function(data) {
     const existingInfo = data[UPDATE_STORAGE_KEY] || null;
     const now = Date.now();
+    const installedVersion = normalizeVersion(chrome.runtime.getManifest().version);
 
-    if (!force && existingInfo && existingInfo.checkedAt && (now - existingInfo.checkedAt) < UPDATE_CHECK_INTERVAL_MS) {
+    const canUseCache = !force
+      && existingInfo
+      && existingInfo.checkedAt
+      && existingInfo.installedVersion === installedVersion
+      && (now - existingInfo.checkedAt) < UPDATE_CHECK_INTERVAL_MS;
+
+    if (canUseCache) {
       renderUpdateNotice(existingInfo);
       return;
     }
 
     try {
-      const response = await fetch(`https://api.github.com/repos/${UPDATE_REPO_OWNER}/${UPDATE_REPO_NAME}/releases/latest`);
-      if (!response.ok) throw new Error(`GitHub API failed: ${response.status}`);
+      const [releaseResponse, manifestResponse] = await Promise.all([
+        fetch(`https://api.github.com/repos/${UPDATE_REPO_OWNER}/${UPDATE_REPO_NAME}/releases/latest`),
+        fetch(MANIFEST_API_URL)
+      ]);
 
-      const release = await response.json();
-      const installedVersion = normalizeVersion(chrome.runtime.getManifest().version);
-      const latestVersion = normalizeVersion(release.tag_name || release.name);
+      if (!releaseResponse.ok) throw new Error(`GitHub Release API failed: ${releaseResponse.status}`);
+
+      const release = await releaseResponse.json();
+
+      let latestVersion = '';
+      if (manifestResponse.ok) {
+        const manifestPayload = await manifestResponse.json();
+        latestVersion = extractVersionFromManifestContent(manifestPayload);
+      }
+
+      if (!latestVersion && isVersionLike(release.tag_name)) {
+        latestVersion = normalizeVersion(release.tag_name);
+      }
+
       const isOutdated = !!latestVersion && compareVersions(latestVersion, installedVersion) > 0;
 
       const updateInfo = {
@@ -164,9 +200,22 @@ function checkForUpdates(force) {
         renderUpdateNotice(updateInfo);
       });
     } catch (error) {
-      if (existingInfo) {
+      if (existingInfo && existingInfo.installedVersion === installedVersion) {
         renderUpdateNotice(existingInfo);
+        return;
       }
+
+      const fallbackInfo = {
+        checkedAt: now,
+        installedVersion,
+        latestVersion: '',
+        isOutdated: false,
+        releaseUrl: FALLBACK_RELEASE_URL
+      };
+
+      chrome.storage.local.set({ [UPDATE_STORAGE_KEY]: fallbackInfo }, function() {
+        renderUpdateNotice(fallbackInfo);
+      });
     }
   });
 }
