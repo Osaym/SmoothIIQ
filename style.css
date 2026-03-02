@@ -1,0 +1,127 @@
+/* 2026 Osaym Omar - SmoothIIQ Styles v1.21 (Dark Mode Removed) */
+
+/* --- CORE OPTIMIZATION --- */
+html.smoothiiq-active *,
+html.smoothiiq-active *::before,
+html.smoothiiq-active *::after {
+  animation: none !important;
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  transition: none !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+  scroll-behavior: auto !important;
+  
+  /* Reduced Paint Cost */
+  box-shadow: none !important;
+  text-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background-attachment: initial !important;
+}
+
+html.smoothiiq-active .card,
+html.smoothiiq-active .panel,
+html.smoothiiq-active .modal-content,
+html.smoothiiq-active .widget,
+html.smoothiiq-active .popover {
+    /* FIX: Changed from 'content' to 'none' so dropdowns/popovers aren't clipped */
+    contain: none !important;
+}
+
+html.smoothiiq-active .iiq-list-viewport, 
+html.smoothiiq-active table, 
+html.smoothiiq-active .grid-viewport {
+    content-visibility: auto !important;
+    contain-intrinsic-size: 1px 1000px; 
+}
+
+/* --- TOAST NOTIFICATION --- */
+#smoothiiq-toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #2c3e50;
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 2147483647;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(20px);
+  /* Keep transitions here specifically for the toast so it animates in */
+  transition: opacity 0.3s, transform 0.3s !important;
+  pointer-events: none;
+  min-width: 240px; 
+}
+
+#smoothiiq-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toast-text {
+  flex-grow: 1;
+  white-space: nowrap;
+}
+
+#smoothiiq-toast .spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: smoothiiq-spin 1s linear infinite !important;
+  flex-shrink: 0;
+}
+
+/* Progress Bars */
+.progress-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.toast-progress-container {
+  width: 100%;
+  background-color: rgba(255,255,255,0.15);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.toast-progress-container.category { height: 6px; }
+.toast-progress-container.total { height: 4px; }
+
+.toast-progress-fill {
+  height: 100%;
+  width: 0%;
+  transition: width 0.2s ease-out !important;
+}
+
+.toast-progress-fill.green { background-color: #10b981; }
+.toast-progress-fill.blue  { background-color: #3b82f6; }
+
+.progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: rgba(255,255,255,0.7);
+  margin-top: 2px;
+}
+
+@keyframes smoothiiq-spin {
+  to { transform: rotate(360deg); }
+}

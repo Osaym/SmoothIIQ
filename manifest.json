@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "Osaym's SmoothIIQ",
+  "version": "1.1",
+  "description": "Optimizes IncidentIQ by disabling animations and caching asset data.",
+  "permissions": [
+    "storage" 
+  ],
+  "host_permissions": [
+    "*://*.incidentiq.com/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["cache_interceptor.js"],
+      "matches": ["*://*.incidentiq.com/*"]
+    }
+  ],
+  "icons": {
+    "16": "images/icon.png",
+    "32": "images/icon.png",
+    "48": "images/icon.png",
+    "128": "images/icon.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "images/icon.png",
+      "32": "images/icon.png"
+    },
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.incidentiq.com/*"],
+      "css": ["style.css"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}
