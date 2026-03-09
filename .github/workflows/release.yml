@@ -16,6 +16,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Generate Tag Name
+        id: tag
+        run: echo "tag_name=v$(TZ=America/New_York date +'%Y.%m.%d-%H%M')" >> $GITHUB_OUTPUT
+
       # Optional: If you use npm/yarn to build your extension (e.g., React/Vue)
       # - name: Install and Build
       #   run: |
@@ -24,7 +28,7 @@ jobs:
 
       - name: Zip Extension
         run: |
-          zip -r chrome-extension.zip \
+          zip -r SmoothIIQ-${{ steps.tag.outputs.tag_name }}.zip \
             manifest.json \
             popup.html \
             popup.js \
@@ -34,15 +38,11 @@ jobs:
             images \
             -x "*.DS_Store"
 
-      - name: Generate Tag Name
-        id: tag
-        run: echo "tag_name=v$(TZ=America/New_York date +'%Y.%m.%d-%H%M')" >> $GITHUB_OUTPUT
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag_name }}
           name: Release ${{ steps.tag.outputs.tag_name }}
-          files: chrome-extension.zip
+          files: SmoothIIQ-${{ steps.tag.outputs.tag_name }}.zip
           draft: false
           prerelease: false

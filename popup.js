@@ -1,4 +1,4 @@
-// 2026 Osaym Omar - SmoothIIQ Popup v1.2
+// 2026 Osaym Omar - SmoothIIQ Popup v1.2.1
 
 const UPDATE_REPO_OWNER = 'osaym';
 const UPDATE_REPO_NAME = 'SmoothIIQ';

@@ -1,7 +1,10 @@
-// 2026 Osaym Omar - SmoothIIQ Cache Layer v1.2
+// 2026 Osaym Omar - SmoothIIQ Cache Layer v1.2.1
 // Runs in "Main World" to intercept XHR and manage caching via IndexedDB.
 
 (function() {
+    let interceptorEnabled = true;
+    const CACHE_STATUS_TYPES = false;
+
     const CACHE_DURATION_MS = 60 * 60 * 1000; // 60 Minutes
     const CHECK_INTERVAL_MS = 15 * 60 * 1000; // Check every 15 minutes
     const DB_NAME = 'SmoothIIQ_DB';
@@ -162,7 +165,7 @@
     };
 
     XMLHttpRequest.prototype.send = function(body) {
-        if (this._method !== 'GET') return originalSend.apply(this, arguments);
+        if (!interceptorEnabled || this._method !== 'GET') return originalSend.apply(this, arguments);
 
         let dbKeyToUse = null;
 
@@ -170,6 +173,7 @@
             dbKeyToUse = CANONICAL.LOCATIONS;
         } 
         else if (DETECTORS.STATUS.test(this._url)) {
+            if (!CACHE_STATUS_TYPES) return originalSend.apply(this, arguments);
             dbKeyToUse = CANONICAL.STATUS;
         } 
         else {
@@ -300,7 +304,7 @@
                             const items = Array.isArray(data) ? data : (data.Items || []);
                             const count = items.length;
 
-                            if (url === CANONICAL.STATUS) stats.statuses = count;
+                            if (CACHE_STATUS_TYPES && url === CANONICAL.STATUS) stats.statuses = count;
                             else {
                                 let roomMatch = url.match(DETECTORS.ROOMS);
                                 if (!roomMatch) roomMatch = url.match(DETECTORS.ROOMS_SEARCH);
@@ -323,6 +327,10 @@
 
     // --- 4. Prefetch Logic ---
     async function prefetchGlobals(force = false) {
+        if (!interceptorEnabled && !force) {
+            return;
+        }
+
         let queue = [];
         const fetchAndCache = async (url) => {
             try {
@@ -340,7 +348,7 @@
 
         let locDataRaw = await DB.get(CANONICAL.LOCATIONS);
         if (force || !locDataRaw) queue.push(CANONICAL.LOCATIONS);
-        if (force || !(await DB.get(CANONICAL.STATUS))) queue.push(CANONICAL.STATUS);
+        if (CACHE_STATUS_TYPES && (force || !(await DB.get(CANONICAL.STATUS)))) queue.push(CANONICAL.STATUS);
 
         if (queue.length === 0 && !force) {
             broadcastSyncSuccess();
@@ -407,6 +415,9 @@
     // --- 5. Command Listener ---
     window.addEventListener('message', function(event) {
         if (event.source !== window || !event.data || typeof event.data !== 'object') return;
+        if (event.data.type === 'SMOOTHIIQ_CMD_SET_ENABLED') {
+            interceptorEnabled = event.data.enabled !== false;
+        }
         if (event.data.type === 'SMOOTHIIQ_CMD_FORCE_SYNC') prefetchGlobals(true);
         if (event.data.type === 'SMOOTHIIQ_CMD_GET_STATS') broadcastStats();
     });

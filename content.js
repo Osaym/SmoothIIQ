@@ -1,17 +1,14 @@
-// 2026 Osaym Omar - SmoothIIQ Content Script v1.2
+// 2026 Osaym Omar - SmoothIIQ Content Script v1.2.1
 
 // 1. Initialize State
 chrome.storage.local.get('isEnabled', function(data) {
-  if (data.isEnabled !== false) {
-    enableBlocking();
-  }
+  setOptimizationState(data.isEnabled !== false);
 });
 
 // 2. Listen for Changes
 chrome.storage.onChanged.addListener(function(changes) {
   if (changes.isEnabled) {
-    if (changes.isEnabled.newValue) enableBlocking();
-    else disableBlocking();
+    setOptimizationState(changes.isEnabled.newValue !== false);
   }
 });
 
@@ -22,6 +19,10 @@ script.onload = function() { this.remove(); };
 (document.head || document.documentElement).appendChild(script);
 
 maybeShowOutdatedToastOnRefresh();
+
+chrome.storage.local.get('isEnabled', function(data) {
+  sendInterceptorEnabledState(data.isEnabled !== false);
+});
 
 // 4. Message Handling
 window.addEventListener('message', function(event) {
@@ -61,6 +62,19 @@ function enableBlocking() {
 
 function disableBlocking() {
   document.documentElement.classList.remove('smoothiiq-active');
+}
+
+function sendInterceptorEnabledState(isEnabled) {
+  window.postMessage({
+    type: 'SMOOTHIIQ_CMD_SET_ENABLED',
+    enabled: !!isEnabled
+  }, '*');
+}
+
+function setOptimizationState(isEnabled) {
+  if (isEnabled) enableBlocking();
+  else disableBlocking();
+  sendInterceptorEnabledState(isEnabled);
 }
 
 function showCacheNotification(message, isLoading = true, duration = 0, progress = -1, subProgress = -1) {

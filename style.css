@@ -1,4 +1,4 @@
-/* 2026 Osaym Omar - SmoothIIQ Styles v1.2 */
+/* 2026 Osaym Omar - SmoothIIQ Styles v1.2.1 */
 
 /* --- CORE OPTIMIZATION --- */
 html.smoothiiq-active *,
@@ -29,9 +29,7 @@ html.smoothiiq-active .popover {
     contain: none !important;
 }
 
-html.smoothiiq-active .iiq-list-viewport, 
-html.smoothiiq-active table, 
-html.smoothiiq-active .grid-viewport {
+html.smoothiiq-active .iiq-list-viewport {
     content-visibility: auto !important;
     contain-intrinsic-size: 1px 1000px; 
 }
