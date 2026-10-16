@@ -1,4 +1,4 @@
-<!-- 2026 Osaym Omar - SmoothIIQ Popup v1.3 -->
+<!-- 2026 Osaym Omar - SmoothIIQ Popup v1.3.1 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -76,17 +76,44 @@
       margin-bottom: 4px;
     }
 
-    .update-link {
-      display: inline-block;
-      margin-top: 4px;
-      font-size: 12px;
-      font-weight: 600;
-      color: #c2410c;
-      text-decoration: none;
+    .update-links {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 8px;
     }
 
-    .update-link:hover {
+    .update-link {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .update-link.store-link {
+      background: #ea580c;
+      color: white;
+      text-align: center;
+      padding: 7px 10px;
+      border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(234, 88, 12, 0.25);
+    }
+
+    .update-link.store-link:hover {
+      background: #c2410c;
+    }
+
+    .update-link.github-link {
+      color: #9a3412;
+      text-align: center;
+      font-size: 11px;
+      opacity: 0.85;
+    }
+
+    .update-link.github-link:hover {
       text-decoration: underline;
+      opacity: 1;
     }
 
     .message {
@@ -221,7 +248,10 @@
     <div id="updateNotice" class="update-notice hidden">
       <div class="update-title">Update Available</div>
       <div id="updateText">A newer version is available.</div>
-      <a id="updateLink" class="update-link" href="#" target="_blank" rel="noopener noreferrer">Get latest version on GitHub</a>
+      <div class="update-links">
+        <a id="storeUpdateLink" class="update-link store-link" href="https://chromewebstore.google.com/detail/osayms-smoothiiq/odacipeffkmakacijjkbabgaannhbpba" target="_blank" rel="noopener noreferrer">Update on Chrome Web Store</a>
+        <a id="updateLink" class="update-link github-link" href="#" target="_blank" rel="noopener noreferrer">View on GitHub Releases</a>
+      </div>
     </div>
     
     <button id="toggleButton" class="toggle-button">Pause Optimization</button>

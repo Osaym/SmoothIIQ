@@ -1,4 +1,4 @@
-// 2026 Osaym Omar - SmoothIIQ Content Script v1.3
+// 2026 Osaym Omar - SmoothIIQ Content Script v1.3.1
 
 // 1. Initialize State
 chrome.storage.local.get('isEnabled', function(data) {

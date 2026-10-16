@@ -1,4 +1,4 @@
-// 2026 Osaym Omar - SmoothIIQ Popup v1.3
+// 2026 Osaym Omar - SmoothIIQ Popup v1.3.1
 
 const UPDATE_REPO_OWNER = 'osaym';
 const UPDATE_REPO_NAME = 'SmoothIIQ';
@@ -6,6 +6,7 @@ const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const UPDATE_STORAGE_KEY = 'updateInfo';
 const FALLBACK_RELEASE_URL = `https://github.com/${UPDATE_REPO_OWNER}/${UPDATE_REPO_NAME}/releases/latest`;
 const MANIFEST_API_URL = `https://api.github.com/repos/${UPDATE_REPO_OWNER}/${UPDATE_REPO_NAME}/contents/manifest.json?ref=main`;
+const CHROME_WEBSTORE_URL = 'https://chromewebstore.google.com/detail/osayms-smoothiiq/odacipeffkmakacijjkbabgaannhbpba';
 
 document.addEventListener('DOMContentLoaded', function() {
   const toggleButton = document.getElementById('toggleButton');
@@ -99,9 +100,10 @@ function initializeUpdateNotice() {
 function renderUpdateNotice(updateInfo) {
   const noticeEl = document.getElementById('updateNotice');
   const textEl = document.getElementById('updateText');
+  const storeLinkEl = document.getElementById('storeUpdateLink');
   const linkEl = document.getElementById('updateLink');
 
-  if (!noticeEl || !textEl || !linkEl) return;
+  if (!noticeEl || !textEl) return;
 
   if (!updateInfo || !updateInfo.isOutdated) {
     noticeEl.classList.add('hidden');
@@ -111,7 +113,12 @@ function renderUpdateNotice(updateInfo) {
   const latest = updateInfo.latestVersion ? `v${updateInfo.latestVersion}` : 'a newer version';
   const installed = updateInfo.installedVersion ? `v${updateInfo.installedVersion}` : 'your current version';
   textEl.textContent = `You're on ${installed}. Latest is ${latest}.`;
-  linkEl.href = updateInfo.releaseUrl || FALLBACK_RELEASE_URL;
+  if (storeLinkEl) {
+    storeLinkEl.href = CHROME_WEBSTORE_URL;
+  }
+  if (linkEl) {
+    linkEl.href = updateInfo.releaseUrl || FALLBACK_RELEASE_URL;
+  }
   noticeEl.classList.remove('hidden');
 }
 

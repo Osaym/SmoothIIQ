@@ -1,4 +1,4 @@
-// 2026 Osaym Omar - SmoothIIQ Cache Layer v1.3
+// 2026 Osaym Omar - SmoothIIQ Cache Layer v1.3.1
 // Runs in "Main World" to intercept XHR and manage caching via IndexedDB.
 
 (function() {
