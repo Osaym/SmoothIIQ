@@ -46,3 +46,19 @@ jobs:
           files: SmoothIIQ-${{ steps.tag.outputs.tag_name }}.zip
           draft: false
           prerelease: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Upload & Publish to Chrome Web Store
+        run: |
+          npx --yes chrome-webstore-upload-cli upload \
+            --source "SmoothIIQ-${{ steps.tag.outputs.tag_name }}.zip" \
+            --auto-publish
+        env:
+          EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+          CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}

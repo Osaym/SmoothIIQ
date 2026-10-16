@@ -1,4 +1,4 @@
-// 2026 Osaym Omar - SmoothIIQ Content Script v1.2.1
+// 2026 Osaym Omar - SmoothIIQ Content Script v1.3
 
 // 1. Initialize State
 chrome.storage.local.get('isEnabled', function(data) {
@@ -11,12 +11,6 @@ chrome.storage.onChanged.addListener(function(changes) {
     setOptimizationState(changes.isEnabled.newValue !== false);
   }
 });
-
-// 3. Inject Cache Interceptor
-const script = document.createElement('script');
-script.src = chrome.runtime.getURL('cache_interceptor.js');
-script.onload = function() { this.remove(); };
-(document.head || document.documentElement).appendChild(script);
 
 maybeShowOutdatedToastOnRefresh();
 

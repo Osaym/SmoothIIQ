@@ -1,9 +1,9 @@
-// 2026 Osaym Omar - SmoothIIQ Cache Layer v1.2.1
+// 2026 Osaym Omar - SmoothIIQ Cache Layer v1.3
 // Runs in "Main World" to intercept XHR and manage caching via IndexedDB.
 
 (function() {
     let interceptorEnabled = true;
-    const CACHE_STATUS_TYPES = false;
+    const CACHE_STATUS_TYPES = true;
 
     const CACHE_DURATION_MS = 60 * 60 * 1000; // 60 Minutes
     const CHECK_INTERVAL_MS = 15 * 60 * 1000; // Check every 15 minutes
@@ -26,9 +26,43 @@
         ROOMS_SEARCH: /api\/v1\.0\/locations\/rooms\/([a-zA-Z0-9-]+)\/search/i // Search/Filter
     };
 
+    function resolveCacheKey(url) {
+        if (!url || typeof url !== 'string') return null;
+        if (DETECTORS.LOCATIONS.test(url)) return CANONICAL.LOCATIONS;
+        if (DETECTORS.STATUS.test(url)) return CACHE_STATUS_TYPES ? CANONICAL.STATUS : null;
+
+        let roomMatch = url.match(DETECTORS.ROOMS) || url.match(DETECTORS.ROOMS_SEARCH);
+        if (roomMatch && roomMatch[1]) {
+            return `/api/v1.0/locations/${roomMatch[1]}/rooms?$s=999999`;
+        }
+        return null;
+    }
+
+    function handleMutationInvalidation(url, method) {
+        if (!url || typeof url !== 'string') return;
+        const m = (method || '').toUpperCase();
+        if (!['POST', 'PUT', 'DELETE', 'PATCH'].includes(m)) return;
+
+        if (DETECTORS.LOCATIONS.test(url)) {
+            log('INVALIDATE', `Locations cache cleared via ${m} ${url}`);
+            DB.del(CANONICAL.LOCATIONS);
+        }
+        if (DETECTORS.STATUS.test(url)) {
+            log('INVALIDATE', `Status cache cleared via ${m} ${url}`);
+            DB.del(CANONICAL.STATUS);
+        }
+        let roomMatch = url.match(DETECTORS.ROOMS) || url.match(DETECTORS.ROOMS_SEARCH);
+        if (roomMatch && roomMatch[1]) {
+            const schoolId = roomMatch[1];
+            const roomKey = `/api/v1.0/locations/${schoolId}/rooms?$s=999999`;
+            log('INVALIDATE', `Rooms cache cleared for location ${schoolId} via ${m} ${url}`);
+            DB.del(roomKey);
+        }
+    }
+
     function log(type, msg, data) {
         if (DEBUG_MODE) {
-            const color = type === 'HIT' ? '#27ae60' : (type === 'MISS' ? '#c0392b' : '#2980b9');
+            const color = type === 'HIT' ? '#27ae60' : (type === 'MISS' ? '#c0392b' : (type === 'INVALIDATE' ? '#e67e22' : '#2980b9'));
             console.log(`%c [SmoothIIQ] ${type}: ${msg}`, `color: ${color}; font-weight: bold;`, data || '');
         }
     }
@@ -165,27 +199,14 @@
     };
 
     XMLHttpRequest.prototype.send = function(body) {
-        if (!interceptorEnabled || this._method !== 'GET') return originalSend.apply(this, arguments);
-
-        let dbKeyToUse = null;
-
-        if (DETECTORS.LOCATIONS.test(this._url)) {
-            dbKeyToUse = CANONICAL.LOCATIONS;
-        } 
-        else if (DETECTORS.STATUS.test(this._url)) {
-            if (!CACHE_STATUS_TYPES) return originalSend.apply(this, arguments);
-            dbKeyToUse = CANONICAL.STATUS;
-        } 
-        else {
-            let roomMatch = this._url.match(DETECTORS.ROOMS);
-            if (!roomMatch) roomMatch = this._url.match(DETECTORS.ROOMS_SEARCH);
-
-            if (roomMatch && roomMatch[1]) {
-                const schoolId = roomMatch[1];
-                dbKeyToUse = `/api/v1.0/locations/${schoolId}/rooms?$s=999999`;
-            }
+        if (this._method !== 'GET') {
+            handleMutationInvalidation(this._url, this._method);
+            return originalSend.apply(this, arguments);
         }
 
+        if (!interceptorEnabled) return originalSend.apply(this, arguments);
+
+        const dbKeyToUse = resolveCacheKey(this._url);
         if (!dbKeyToUse) return originalSend.apply(this, arguments);
 
         const self = this;
@@ -226,6 +247,61 @@
                 originalSend.apply(self, args);
             }
         });
+    };
+
+    // --- 1.1 Fetch Interceptor ---
+    const originalFetch = window.fetch;
+    window.fetch = async function(resource, init) {
+        let method = 'GET';
+        if (init && init.method) {
+            method = String(init.method).toUpperCase();
+        } else if (typeof Request !== 'undefined' && resource instanceof Request) {
+            method = resource.method ? resource.method.toUpperCase() : 'GET';
+        }
+
+        let url = '';
+        if (typeof resource === 'string') {
+            url = resource;
+        } else if (resource instanceof URL) {
+            url = resource.toString();
+        } else if (typeof Request !== 'undefined' && resource instanceof Request) {
+            url = resource.url;
+        }
+
+        if (method !== 'GET') {
+            handleMutationInvalidation(url, method);
+            return originalFetch.apply(this, arguments);
+        }
+
+        if (!interceptorEnabled) return originalFetch.apply(this, arguments);
+
+        const dbKeyToUse = resolveCacheKey(url);
+        if (!dbKeyToUse) return originalFetch.apply(this, arguments);
+
+        try {
+            const cachedResponse = await DB.get(dbKeyToUse);
+            if (cachedResponse) {
+                log('HIT (fetch)', url);
+                const searchTerm = getSearchTerm(url);
+                let finalResponse = cachedResponse;
+                if (searchTerm) {
+                    finalResponse = filterData(cachedResponse, searchTerm);
+                }
+                return new Response(finalResponse, {
+                    status: 200,
+                    statusText: 'OK',
+                    headers: new Headers({
+                        'Content-Type': 'application/json',
+                        'X-SmoothIIQ-Cache': 'HIT'
+                    })
+                });
+            }
+        } catch (err) {
+            log('WARN', 'Fetch cache read failed, falling back to network', err);
+        }
+
+        log('MISS (fetch)', url, '(Not in DB)');
+        return originalFetch.apply(this, arguments);
     };
 
     // --- 2. UI Logic ---
