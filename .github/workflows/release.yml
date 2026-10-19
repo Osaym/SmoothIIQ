@@ -54,9 +54,8 @@ jobs:
 
       - name: Upload & Publish to Chrome Web Store
         run: |
-          npx --yes chrome-webstore-upload-cli upload \
-            --source "SmoothIIQ-${{ steps.tag.outputs.tag_name }}.zip" \
-            --auto-publish
+          npx --yes chrome-webstore-upload-cli \
+            --source "SmoothIIQ-${{ steps.tag.outputs.tag_name }}.zip"
         env:
           EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
           CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
