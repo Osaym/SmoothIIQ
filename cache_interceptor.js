@@ -634,6 +634,8 @@
     }
 
     // --- 5. Command Listener ---
+    let isCommentModalOpen = false;
+
     window.addEventListener('message', function (event) {
         if (event.source !== window || !event.data || typeof event.data !== 'object') return;
         if (event.data.type === 'SMOOTHIIQ_CMD_SET_ENABLED') {
@@ -641,7 +643,67 @@
         }
         if (event.data.type === 'SMOOTHIIQ_CMD_FORCE_SYNC') prefetchGlobals(true);
         if (event.data.type === 'SMOOTHIIQ_CMD_GET_STATS') broadcastStats();
+        if (event.data.type === 'SMOOTHIIQ_SET_MODAL_STATE') {
+            isCommentModalOpen = event.data.isOpen === true;
+        }
     });
+
+    // --- 6. TinyMCE Comment Shortcut Hook (Main World) ---
+    function initTinyMCEHook() {
+        function attachToEditor(editor) {
+            if (!editor || editor._smoothiiqHooked) return;
+            editor._smoothiiqHooked = true;
+
+            editor.on('keydown', function (e) {
+                const isModifier = e.metaKey || e.ctrlKey;
+                if (isModifier && (e.key === 'Enter' || e.keyCode === 13)) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.postMessage({ type: 'SMOOTHIIQ_COMMENT_SHORTCUT' }, '*');
+                    return false;
+                }
+
+                if (isCommentModalOpen) {
+                    if (e.key === 'Escape' || e.keyCode === 27) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.postMessage({ type: 'SMOOTHIIQ_MODAL_KEY', key: 'Escape' }, '*');
+                        return false;
+                    }
+                    if (e.key === '1' || e.key === '2' || e.key === '3') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.postMessage({ type: 'SMOOTHIIQ_MODAL_KEY', key: e.key }, '*');
+                        return false;
+                    }
+                }
+            });
+        }
+
+        function checkTinyMCE() {
+            if (typeof window.tinymce !== 'undefined' && window.tinymce) {
+                if (!window.tinymce._smoothiiqGlobalHooked) {
+                    window.tinymce._smoothiiqGlobalHooked = true;
+                    if (typeof window.tinymce.on === 'function') {
+                        window.tinymce.on('AddEditor', function (e) {
+                            if (e && e.editor) attachToEditor(e.editor);
+                        });
+                    }
+                }
+                const eds = window.tinymce.editors || [];
+                if (Array.isArray(eds)) {
+                    eds.forEach(attachToEditor);
+                } else if (typeof eds === 'object') {
+                    Object.values(eds).forEach(attachToEditor);
+                }
+            }
+        }
+
+        checkTinyMCE();
+        setInterval(checkTinyMCE, 1000);
+    }
+
+    initTinyMCEHook();
 
     setTimeout(() => prefetchGlobals(false), 1000);
     setInterval(() => prefetchGlobals(false), CHECK_INTERVAL_MS);

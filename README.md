@@ -145,8 +145,10 @@ Install the verified release directly from the [Chrome Web Store](https://chrome
 
 | Shortcut / Control | Platform | Action |
 | :--- | :---: | :--- |
-| **`Cmd + Enter`** | macOS | Commits active form values and clicks the primary **Save** button. |
-| **`Ctrl + Enter`** | Windows / Linux | Commits active form values and clicks the primary **Save** button. |
+| **`Cmd + Enter`** | macOS | In Ticket Comments: Opens quick modal to submit with **[1]** Private Comment, **[2]** Visible to Requestor, or **[3]** Visible & Waiting on Requestor. Everywhere else: Saves active form / asset changes. |
+| **`Ctrl + Enter`** | Windows / Linux | In Ticket Comments: Opens quick modal to submit with **[1]** Private Comment, **[2]** Visible to Requestor, or **[3]** Visible & Waiting on Requestor. Everywhere else: Saves active form / asset changes. |
+| **`1` / `2` / `3`** | All | Instantly selects and posts comment with chosen visibility and response toggle while modal is open. |
+| **`Esc`** | All | Cancels modal and restores cursor focus to the comment editor. |
 | **Pause Optimization** | Popup | Temporarily disables all CSS containment and style modifications. |
 | **Refresh Cache Now** | Popup | Triggers a fresh background resynchronization of location and status tables. |
 | **Reset** | Popup | Resets the cumulative "Performance Impact" counters back to zero. |
