@@ -659,6 +659,11 @@
                 if (isModifier && (e.key === 'Enter' || e.keyCode === 13)) {
                     e.preventDefault();
                     e.stopPropagation();
+                    try {
+                        if (typeof window.tinymce !== 'undefined' && window.tinymce.triggerSave) {
+                            window.tinymce.triggerSave();
+                        }
+                    } catch (err) { }
                     window.postMessage({ type: 'SMOOTHIIQ_COMMENT_SHORTCUT' }, '*');
                     return false;
                 }
