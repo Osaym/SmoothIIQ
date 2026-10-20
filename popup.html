@@ -1,7 +1,9 @@
-<!-- 2026 Osaym Omar - SmoothIIQ Popup v1.3.1 -->
+<!-- 2026 Osaym Omar - SmoothIIQ Popup v1.4 -->
 <!DOCTYPE html>
 <html>
+
 <head>
+  <meta charset="UTF-8">
   <style>
     body {
       width: 320px;
@@ -11,7 +13,7 @@
       background-color: #f8f9fa;
       margin: 0;
     }
-    
+
     .container {
       display: flex;
       flex-direction: column;
@@ -20,7 +22,7 @@
       background: white;
       padding: 20px;
       border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     }
 
     .brand {
@@ -39,7 +41,7 @@
       object-fit: cover;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
-    
+
     .header {
       font-weight: 700;
       color: #2c3e50;
@@ -122,7 +124,7 @@
       line-height: 1.4;
       margin: 0;
     }
-    
+
     .toggle-button {
       width: 100%;
       padding: 12px;
@@ -137,25 +139,28 @@
       box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
       margin-bottom: 8px;
     }
-    
+
     .toggle-button:hover {
       background-color: #059669;
       transform: translateY(-1px);
     }
-    
+
     .toggle-button.disabled {
       background-color: #ef4444;
       box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
     }
-    .toggle-button.disabled:hover { background-color: #dc2626; }
-    
+
+    .toggle-button.disabled:hover {
+      background-color: #dc2626;
+    }
+
     /* Cache Control Section */
     .cache-control {
-        width: 100%;
-        background: #f1f5f9;
-        border-radius: 8px;
-        padding: 10px;
-        box-sizing: border-box;
+      width: 100%;
+      background: #f1f5f9;
+      border-radius: 8px;
+      padding: 10px;
+      box-sizing: border-box;
       border: 1px solid #e2e8f0;
     }
 
@@ -170,61 +175,201 @@
     }
 
     .cache-status {
-        font-size: 12px;
-        color: #64748b;
-        margin-bottom: 8px;
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 8px;
     }
 
     .refresh-button {
-        width: 100%;
-        padding: 8px;
-        font-size: 12px;
-        font-weight: 500;
-        border: 1px solid #cbd5e1;
-        border-radius: 6px;
-        background: white;
-        color: #334155;
-        cursor: pointer;
-        transition: all 0.2s;
+      width: 100%;
+      padding: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: white;
+      color: #334155;
+      cursor: pointer;
+      transition: all 0.2s;
     }
 
     .refresh-button:hover {
-        background: #e2e8f0;
-        border-color: #94a3b8;
+      background: #e2e8f0;
+      border-color: #94a3b8;
     }
-    
+
     /* Stats Table */
     .stats-table {
-        width: 100%;
-        margin-top: 10px;
-        font-size: 13px;
-        border-collapse: collapse;
+      width: 100%;
+      margin-top: 10px;
+      font-size: 13px;
+      border-collapse: collapse;
     }
-    
+
     .stats-table td {
-        padding: 4px 0;
-        border-bottom: 1px solid #e2e8f0;
-        text-align: left;
+      padding: 4px 0;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: left;
     }
-    
+
     .stats-table td:last-child {
-        text-align: right;
-        font-weight: 600;
-        color: #2c3e50;
+      text-align: right;
+      font-weight: 600;
+      color: #2c3e50;
     }
 
     .stats-table tr:last-child td {
-        border-bottom: none;
+      border-bottom: none;
     }
-    
+
     .room-selector {
-        width: 100%;
-        padding: 6px;
-        margin-top: 8px;
-        border: 1px solid #cbd5e1;
-        border-radius: 6px;
-        font-size: 12px;
-        color: #334155;
+      width: 100%;
+      padding: 6px;
+      margin-top: 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #334155;
+    }
+
+    /* Savings Card */
+    .savings-card {
+      width: 100%;
+      background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+      border: 1px solid #a7f3d0;
+      border-radius: 10px;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    .savings-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .savings-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      color: #065f46;
+      text-transform: uppercase;
+      text-align: left;
+    }
+
+    .reset-stats-btn {
+      background: none;
+      border: none;
+      color: #059669;
+      font-size: 10px;
+      cursor: pointer;
+      text-decoration: underline;
+      padding: 0;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+    }
+
+    .reset-stats-btn:hover {
+      opacity: 1;
+      color: #047857;
+    }
+
+    .savings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .savings-item {
+      background: white;
+      border-radius: 8px;
+      padding: 8px 2px;
+      border: 1px solid #d1fae5;
+      box-shadow: 0 1px 2px rgba(16, 185, 129, 0.05);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .savings-value {
+      font-size: 14px;
+      font-weight: 700;
+      color: #065f46;
+      line-height: 1.2;
+    }
+
+    .savings-label {
+      font-size: 9px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      margin-top: 3px;
+      letter-spacing: 0.2px;
+      text-align: center;
+    }
+
+    .savings-meta-row {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px dashed #a7f3d0;
+      font-size: 10px;
+      color: #047857;
+    }
+
+    .savings-meta-item {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .meta-label {
+      opacity: 0.8;
+      font-weight: 500;
+    }
+
+    .meta-val {
+      font-weight: 700;
+    }
+
+    .savings-actions-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .action-btn {
+      flex: 1;
+      padding: 5px 8px;
+      background: white;
+      border: 1px solid #a7f3d0;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #065f46;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 2px rgba(16, 185, 129, 0.05);
+    }
+
+    .action-btn:hover {
+      background: #ecfdf5;
+      border-color: #6ee7b7;
+      transform: translateY(-1px);
+    }
+
+    .action-feedback {
+      margin-top: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #065f46;
+      background: #d1fae5;
+      padding: 4px 6px;
+      border-radius: 4px;
+      text-align: center;
     }
 
     .footer {
@@ -232,10 +377,14 @@
       color: #9ca3af;
       margin-top: 10px;
     }
-    
-    a { color: #3b82f6; text-decoration: none; }
+
+    a {
+      color: #3b82f6;
+      text-decoration: none;
+    }
   </style>
 </head>
+
 <body>
   <div class="container">
     <div class="brand">
@@ -249,32 +398,78 @@
       <div class="update-title">Update Available</div>
       <div id="updateText">A newer version is available.</div>
       <div class="update-links">
-        <a id="storeUpdateLink" class="update-link store-link" href="https://chromewebstore.google.com/detail/osayms-smoothiiq/odacipeffkmakacijjkbabgaannhbpba" target="_blank" rel="noopener noreferrer">Update on Chrome Web Store</a>
-        <a id="updateLink" class="update-link github-link" href="#" target="_blank" rel="noopener noreferrer">View on GitHub Releases</a>
+        <a id="storeUpdateLink" class="update-link store-link"
+          href="https://chromewebstore.google.com/detail/osayms-smoothiiq/odacipeffkmakacijjkbabgaannhbpba"
+          target="_blank" rel="noopener noreferrer">Update on Chrome Web Store</a>
+        <a id="updateLink" class="update-link github-link" href="#" target="_blank" rel="noopener noreferrer">View on
+          GitHub Releases</a>
       </div>
     </div>
-    
+
     <button id="toggleButton" class="toggle-button">Pause Optimization</button>
-    
+
+    <div class="savings-card">
+      <div class="savings-header-row">
+        <div class="savings-title">Performance Impact</div>
+        <button id="resetSavingsBtn" class="reset-stats-btn" title="Reset cumulative stats">Reset</button>
+      </div>
+      <div class="savings-grid">
+        <div class="savings-item">
+          <div class="savings-value" id="timeSaved">0s</div>
+          <div class="savings-label">Wait Time Saved</div>
+        </div>
+        <div class="savings-item">
+          <div class="savings-value" id="dataSaved">0 KB</div>
+          <div class="savings-label">Data Saved</div>
+        </div>
+        <div class="savings-item">
+          <div class="savings-value" id="requestsSaved">0</div>
+          <div class="savings-label">Accelerated</div>
+        </div>
+        <div class="savings-item">
+          <div class="savings-value" id="trackersBlocked">0</div>
+          <div class="savings-label">Trackers Blocked</div>
+        </div>
+      </div>
+
+      <div class="savings-meta-row">
+        <div class="savings-meta-item">
+          <span class="meta-label">Time on iiQ:</span>
+          <span class="meta-val" id="timeSpentOnIIQ">0m</span>
+        </div>
+        <div class="savings-meta-item">
+          <span class="meta-label">First Installed:</span>
+          <span class="meta-val" id="installDate">-</span>
+        </div>
+      </div>
+
+      <div class="savings-actions-row">
+        <button id="exportMetricsBtn" class="action-btn"
+          title="Copy bragging report for Google Doc and download backup">&#128203; Export</button>
+        <button id="importMetricsBtn" class="action-btn" title="Import backup metrics">&#128229; Import</button>
+      </div>
+      <div id="actionFeedback" class="action-feedback hidden"></div>
+    </div>
+
     <div class="cache-control">
       <div class="cache-title">Cache Control</div>
-        <div id="cacheStatus" class="cache-status">Checking cache...</div>
-        <button id="refreshButton" class="refresh-button">&#x21bb; Refresh Cache Now</button>
+      <div id="cacheStatus" class="cache-status">Checking cache...</div>
+      <button id="refreshButton" class="refresh-button">&#x21bb; Refresh Cache Now</button>
 
-        <table class="stats-table">
-            <tr>
-                <td>Asset Statuses</td>
-                <td id="stat-status">-</td>
-            </tr>
-            <tr>
-                <td>Locations</td>
-                <td id="stat-locations">-</td>
-            </tr>
-        </table>
-        
-        <select id="room-breakdown" class="room-selector">
-            <option>Loading Rooms...</option>
-        </select>
+      <table class="stats-table">
+        <tr>
+          <td>Asset Statuses</td>
+          <td id="stat-status">-</td>
+        </tr>
+        <tr>
+          <td>Locations</td>
+          <td id="stat-locations">-</td>
+        </tr>
+      </table>
+
+      <select id="room-breakdown" class="room-selector">
+        <option>Loading Rooms...</option>
+      </select>
     </div>
 
     <div class="footer">
@@ -283,4 +478,5 @@
   </div>
   <script src="popup.js"></script>
 </body>
+
 </html>

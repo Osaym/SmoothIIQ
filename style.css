@@ -1,17 +1,18 @@
-/* 2026 Osaym Omar - SmoothIIQ Styles v1.3.1 */
+/* 2026 Osaym Omar - SmoothIIQ Styles v1.4 */
 
 /* --- CORE OPTIMIZATION --- */
 html.smoothiiq-active *,
 html.smoothiiq-active *::before,
 html.smoothiiq-active *::after {
-  animation: none !important;
-  animation-duration: 0s !important;
-  animation-delay: 0s !important;
-  transition: none !important;
-  transition-duration: 0s !important;
+  /* Ultra-fast 0.001s (1ms) duration visually eliminates all animation delays
+     while crucially ensuring the browser still dispatches 'transitionend' events.
+     This prevents Angular UI router and sidebar drawer controllers from stalling. */
+  transition-duration: 0.001s !important;
   transition-delay: 0s !important;
+  animation-duration: 0.001s !important;
+  animation-delay: 0s !important;
   scroll-behavior: auto !important;
-  
+
   /* Reduced Paint Cost */
   box-shadow: none !important;
   text-shadow: none !important;
@@ -25,13 +26,16 @@ html.smoothiiq-active .panel,
 html.smoothiiq-active .modal-content,
 html.smoothiiq-active .widget,
 html.smoothiiq-active .popover {
-    /* FIX: Changed from 'content' to 'none' so dropdowns/popovers aren't clipped */
-    contain: none !important;
+  /* FIX: Changed from 'content' to 'none' so dropdowns/popovers aren't clipped */
+  contain: none !important;
 }
 
-html.smoothiiq-active .iiq-list-viewport {
-    content-visibility: auto !important;
-    contain-intrinsic-size: 1px 1000px; 
+html.smoothiiq-active .k-grid tbody tr,
+html.smoothiiq-active [ng-repeat*="ticket"],
+html.smoothiiq-active .activity-stream-item,
+html.smoothiiq-active .timeline-activity-item {
+  content-visibility: auto !important;
+  contain-intrinsic-size: 1px 45px;
 }
 
 /* --- TOAST NOTIFICATION --- */
@@ -43,7 +47,7 @@ html.smoothiiq-active .iiq-list-viewport {
   color: #fff;
   padding: 12px 16px;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 13px;
   font-weight: 500;
@@ -56,7 +60,7 @@ html.smoothiiq-active .iiq-list-viewport {
   /* Keep transitions here specifically for the toast so it animates in */
   transition: opacity 0.3s, transform 0.3s !important;
   pointer-events: none;
-  min-width: 240px; 
+  min-width: 240px;
 }
 
 #smoothiiq-toast.show {
@@ -72,13 +76,14 @@ html.smoothiiq-active .iiq-list-viewport {
 
 .toast-text {
   flex-grow: 1;
-  white-space: nowrap;
+  line-height: 1.4;
+  max-width: 380px;
 }
 
 #smoothiiq-toast .spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(255,255,255,0.3);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: #fff;
   border-radius: 50%;
   animation: smoothiiq-spin 1s linear infinite !important;
@@ -95,13 +100,18 @@ html.smoothiiq-active .iiq-list-viewport {
 
 .toast-progress-container {
   width: 100%;
-  background-color: rgba(255,255,255,0.15);
+  background-color: rgba(255, 255, 255, 0.15);
   border-radius: 2px;
   overflow: hidden;
 }
 
-.toast-progress-container.category { height: 6px; }
-.toast-progress-container.total { height: 4px; }
+.toast-progress-container.category {
+  height: 6px;
+}
+
+.toast-progress-container.total {
+  height: 4px;
+}
 
 .toast-progress-fill {
   height: 100%;
@@ -109,17 +119,24 @@ html.smoothiiq-active .iiq-list-viewport {
   transition: width 0.2s ease-out !important;
 }
 
-.toast-progress-fill.green { background-color: #10b981; }
-.toast-progress-fill.blue  { background-color: #3b82f6; }
+.toast-progress-fill.green {
+  background-color: #10b981;
+}
+
+.toast-progress-fill.blue {
+  background-color: #3b82f6;
+}
 
 .progress-labels {
   display: flex;
   justify-content: space-between;
   font-size: 10px;
-  color: rgba(255,255,255,0.7);
+  color: rgba(255, 255, 255, 0.7);
   margin-top: 2px;
 }
 
 @keyframes smoothiiq-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }

@@ -1,29 +1,30 @@
-// 2026 Osaym Omar - SmoothIIQ Cache Layer v1.3.1
+// 2026 Osaym Omar - SmoothIIQ Cache Layer v1.4
 // Runs in "Main World" to intercept XHR and manage caching via IndexedDB.
 
-(function() {
+(function () {
     let interceptorEnabled = true;
     const CACHE_STATUS_TYPES = true;
 
     const CACHE_DURATION_MS = 60 * 60 * 1000; // 60 Minutes
     const CHECK_INTERVAL_MS = 15 * 60 * 1000; // Check every 15 minutes
     const DB_NAME = 'SmoothIIQ_DB';
-    const DB_VERSION = 1;
+    const DB_VERSION = 5;
     const STORE_NAME = 'network_cache';
 
-    // Enable Verbose Logging to Console for debugging
-    const DEBUG_MODE = true;
+    // Verbose Logging to Console (disabled for production)
+    const DEBUG_MODE = false;
 
     const CANONICAL = {
         LOCATIONS: '/api/v1.0/locations/all?$s=999999',
-        STATUS:    '/api/v1.0/assets/status/types?$s=999999'
+        STATUS: '/api/v1.0/assets/status/types?$s=999999'
     };
 
     const DETECTORS = {
         LOCATIONS: /api\/v1\.0\/locations\/all/i,
-        STATUS:    /api\/v1\.0\/assets\/status\/types/i,
-        ROOMS:     /api\/v1\.0\/locations\/([a-zA-Z0-9-]+)\/rooms/i, // Standard List
-        ROOMS_SEARCH: /api\/v1\.0\/locations\/rooms\/([a-zA-Z0-9-]+)\/search/i // Search/Filter
+        STATUS: /api\/v1\.0\/assets\/status\/types/i,
+        ROOMS: /api\/v1\.0\/locations\/([a-zA-Z0-9-]+)\/rooms/i, // Standard List
+        ROOMS_SEARCH: /api\/v1\.0\/locations\/rooms\/([a-zA-Z0-9-]+)\/search/i, // Search/Filter
+        SETTINGS: /api\/v1\.0\/settings\/([a-zA-Z0-9_.-]+)/i
     };
 
     function resolveCacheKey(url) {
@@ -35,6 +36,12 @@
         if (roomMatch && roomMatch[1]) {
             return `/api/v1.0/locations/${roomMatch[1]}/rooms?$s=999999`;
         }
+
+        let settingMatch = url.match(DETECTORS.SETTINGS);
+        if (settingMatch && settingMatch[1]) {
+            return `/api/v1.0/settings/${settingMatch[1]}`;
+        }
+
         return null;
     }
 
@@ -57,6 +64,12 @@
             const roomKey = `/api/v1.0/locations/${schoolId}/rooms?$s=999999`;
             log('INVALIDATE', `Rooms cache cleared for location ${schoolId} via ${m} ${url}`);
             DB.del(roomKey);
+        }
+        let settingMatch = url.match(DETECTORS.SETTINGS);
+        if (settingMatch && settingMatch[1]) {
+            const settingKey = `/api/v1.0/settings/${settingMatch[1]}`;
+            log('INVALIDATE', `Settings cache cleared for ${settingMatch[1]} via ${m} ${url}`);
+            DB.del(settingKey);
         }
     }
 
@@ -84,9 +97,30 @@
         broadcastStats();
     }
 
-    // --- IndexedDB Storage Engine ---
+    function reportSavings(bytes, timeMs, isTracker = false) {
+        try {
+            window.postMessage({
+                type: 'SMOOTHIIQ_SAVINGS_EVENT',
+                bytesSaved: Math.round(bytes || 0),
+                timeSavedMs: Math.round(timeMs || 0),
+                isTracker: !!isTracker
+            }, '*');
+        } catch(e) {}
+    }
+
+    function isTelemetry(url) {
+        if (!url || typeof url !== 'string') return false;
+        return /fullstory\.com|app\.pendo\.io|rs\.fullstory|pendo-static|google-analytics\.com|googletagmanager\.com|clarity\.ms|aptrinsic\.com|rte\/v1\/command/i.test(url);
+    }
+
+    // Fast L1 in-memory RAM cache (0ms instant lookup)
+    const memoryCache = new Map();
+    let dbInstance = null;
+
+    // --- IndexedDB & Memory Storage Engine ---
     const DB = {
         open: () => {
+            if (dbInstance) return Promise.resolve(dbInstance);
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open(DB_NAME, DB_VERSION);
                 request.onupgradeneeded = (e) => {
@@ -95,11 +129,25 @@
                         db.createObjectStore(STORE_NAME);
                     }
                 };
-                request.onsuccess = (e) => resolve(e.target.result);
+                request.onsuccess = (e) => {
+                    dbInstance = e.target.result;
+                    dbInstance.onclose = () => { dbInstance = null; };
+                    dbInstance.onerror = () => { dbInstance = null; };
+                    resolve(dbInstance);
+                };
                 request.onerror = (e) => reject(e);
             });
         },
         get: async (key) => {
+            // L1 RAM check (0ms)
+            const mem = memoryCache.get(key);
+            if (mem) {
+                if (Date.now() - mem.timestamp < CACHE_DURATION_MS) {
+                    return mem.data;
+                }
+                memoryCache.delete(key);
+            }
+
             try {
                 const db = await DB.open();
                 return new Promise((resolve) => {
@@ -110,9 +158,10 @@
                         const result = req.result;
                         if (!result) resolve(null);
                         else if (Date.now() - result.timestamp > CACHE_DURATION_MS) {
-                            DB.del(key); 
+                            DB.del(key);
                             resolve(null);
                         } else {
+                            memoryCache.set(key, result); // Promote to RAM
                             resolve(result.data);
                         }
                     };
@@ -121,23 +170,26 @@
             } catch (e) { return null; }
         },
         put: async (key, data) => {
+            const entry = { timestamp: Date.now(), data: data };
+            memoryCache.set(key, entry); // Store in RAM immediately
             try {
                 const db = await DB.open();
                 return new Promise((resolve, reject) => {
                     const tx = db.transaction(STORE_NAME, 'readwrite');
                     const store = tx.objectStore(STORE_NAME);
-                    store.put({ timestamp: Date.now(), data: data }, key);
+                    store.put(entry, key);
                     tx.oncomplete = () => resolve();
                     tx.onerror = () => reject();
                 });
             } catch (e) { console.error('IDB Put Error', e); }
         },
         del: async (key) => {
+            memoryCache.delete(key);
             try {
                 const db = await DB.open();
                 const tx = db.transaction(STORE_NAME, 'readwrite');
                 tx.objectStore(STORE_NAME).delete(key);
-            } catch(e) {}
+            } catch (e) { }
         }
     };
 
@@ -152,7 +204,7 @@
             match = decoded.match(/\w+\s+eq\s+['"]([^'"]+)['"]/i);
             if (match && match[1]) return match[1];
             return null;
-        } catch(e) { return null; }
+        } catch (e) { return null; }
     }
 
     function filterData(jsonStr, term) {
@@ -168,8 +220,8 @@
                 for (const val of Object.values(item)) {
                     if (val === null || val === undefined) continue;
                     const str = String(val).toLowerCase();
-                    if (str === lowerTerm) { score = 3; break; } 
-                    if (str.startsWith(lowerTerm)) { score = Math.max(score, 2); } 
+                    if (str === lowerTerm) { score = 3; break; }
+                    if (str.startsWith(lowerTerm)) { score = Math.max(score, 2); }
                     else if (str.includes(lowerTerm)) { score = Math.max(score, 1); }
                 }
                 return { item, score };
@@ -185,20 +237,43 @@
             } else {
                 return JSON.stringify(filtered);
             }
-        } catch(e) { return jsonStr; }
+        } catch (e) { return jsonStr; }
     }
 
     // --- 1. XHR Interceptor ---
     const originalOpen = XMLHttpRequest.prototype.open;
     const originalSend = XMLHttpRequest.prototype.send;
 
-    XMLHttpRequest.prototype.open = function(method, url) {
+    XMLHttpRequest.prototype.open = function (method, url) {
         this._url = url;
         this._method = method;
         return originalOpen.apply(this, arguments);
     };
 
-    XMLHttpRequest.prototype.send = function(body) {
+    XMLHttpRequest.prototype.send = function (body) {
+        if (isTelemetry(this._url)) {
+            log('SILENCE', this._url);
+            reportSavings(1024, 80, true);
+            try {
+                Object.defineProperty(this, 'readyState', { writable: true, value: 4 });
+                Object.defineProperty(this, 'status', { writable: true, value: 200 });
+                Object.defineProperty(this, 'statusText', { writable: true, value: 'OK' });
+                Object.defineProperty(this, 'responseText', { writable: true, value: '{}' });
+                Object.defineProperty(this, 'response', { writable: true, value: (this.responseType === 'json' ? {} : '{}') });
+            } catch(e) {}
+            queueMicrotask(() => {
+                try {
+                    if (this.onreadystatechange) this.onreadystatechange.call(this);
+                    this.dispatchEvent(new Event('readystatechange'));
+                    if (this.onload) this.onload.call(this);
+                    this.dispatchEvent(new Event('load'));
+                    if (this.onloadend) this.onloadend.call(this);
+                    this.dispatchEvent(new Event('loadend'));
+                } catch(e) {}
+            });
+            return;
+        }
+
         if (this._method !== 'GET') {
             handleMutationInvalidation(this._url, this._method);
             return originalSend.apply(this, arguments);
@@ -215,35 +290,60 @@
         DB.get(dbKeyToUse).then(cachedResponse => {
             if (cachedResponse) {
                 log('HIT', self._url);
-                
+
                 const searchTerm = getSearchTerm(self._url);
                 let finalResponse = cachedResponse;
-                
+
                 if (searchTerm) {
                     finalResponse = filterData(cachedResponse, searchTerm);
                 }
 
+                const byteSize = finalResponse ? (finalResponse.length || 1024) : 1024;
+                reportSavings(byteSize, 180, false);
+
                 try {
                     Object.defineProperty(self, 'readyState', { writable: true, value: 4 });
                     Object.defineProperty(self, 'status', { writable: true, value: 200 });
-                    try { Object.defineProperty(self, 'statusText', { writable: true, value: 'OK' }); } catch(e) {} 
-                    
+                    try { Object.defineProperty(self, 'statusText', { writable: true, value: 'OK' }); } catch (e) { }
+
                     Object.defineProperty(self, 'responseText', { writable: true, value: finalResponse });
-                    Object.defineProperty(self, 'response', { writable: true, value: finalResponse });
-                    
-                    try { Object.defineProperty(self, 'responseURL', { writable: true, value: self._url }); } catch(e) {}
-                    
-                    self.getAllResponseHeaders = function() { return "Content-Type: application/json"; };
+                    let parsedRes = finalResponse;
+                    if (self.responseType === 'json') {
+                        try { parsedRes = JSON.parse(finalResponse); } catch (e) { parsedRes = finalResponse; }
+                    }
+                    Object.defineProperty(self, 'response', { writable: true, value: parsedRes });
+                    self.__smoothIIQ_cached = true;
+
+                    try { Object.defineProperty(self, 'responseURL', { writable: true, value: self._url }); } catch (e) { }
+
+                    self.getAllResponseHeaders = function () { return "Content-Type: application/json\r\nX-SmoothIIQ-Cache: HIT\r\n"; };
+                    self.getResponseHeader = function (name) {
+                        if (name && name.toLowerCase() === 'content-type') return 'application/json';
+                        if (name && name.toLowerCase() === 'x-smoothiiq-cache') return 'HIT';
+                        return null;
+                    };
                 } catch (e) {
                     log('WARN', 'Mocking properties failed, but dispatching load anyway', e);
                 }
 
-                if (self.onreadystatechange) self.onreadystatechange.call(self);
-                if (self.onload) self.onload.call(self);
-                
-                self.dispatchEvent(new Event('load'));
+                queueMicrotask(() => {
+                    try {
+                        if (self.onreadystatechange) self.onreadystatechange.call(self);
+                        self.dispatchEvent(new Event('readystatechange'));
+                        if (self.onload) self.onload.call(self);
+                        self.dispatchEvent(new Event('load'));
+                        if (self.onloadend) self.onloadend.call(self);
+                        self.dispatchEvent(new Event('loadend'));
+                    } catch (e) { }
+                });
             } else {
-                log('MISS', self._url, '(Not in DB)');
+                log('MISS', self._url, '(Saving on response)');
+                self.addEventListener('load', function () {
+                    if (self.status === 200 && self.responseText) {
+                        DB.put(dbKeyToUse, self.responseText);
+                        log('INFO', `Auto-cached response for ${dbKeyToUse}`);
+                    }
+                }, { once: true });
                 originalSend.apply(self, args);
             }
         });
@@ -251,7 +351,7 @@
 
     // --- 1.1 Fetch Interceptor ---
     const originalFetch = window.fetch;
-    window.fetch = async function(resource, init) {
+    window.fetch = async function (resource, init) {
         let method = 'GET';
         if (init && init.method) {
             method = String(init.method).toUpperCase();
@@ -266,6 +366,19 @@
             url = resource.toString();
         } else if (typeof Request !== 'undefined' && resource instanceof Request) {
             url = resource.url;
+        }
+
+        if (isTelemetry(url)) {
+            log('SILENCE (fetch)', url);
+            reportSavings(1024, 80, true);
+            return new Response('{}', {
+                status: 200,
+                statusText: 'OK',
+                headers: new Headers({
+                    'Content-Type': 'application/json',
+                    'X-SmoothIIQ-Telemetry': 'SILENCED'
+                })
+            });
         }
 
         if (method !== 'GET') {
@@ -287,6 +400,8 @@
                 if (searchTerm) {
                     finalResponse = filterData(cachedResponse, searchTerm);
                 }
+                const byteSize = finalResponse ? (finalResponse.length || 1024) : 1024;
+                reportSavings(byteSize, 180, false);
                 return new Response(finalResponse, {
                     status: 200,
                     statusText: 'OK',
@@ -300,9 +415,35 @@
             log('WARN', 'Fetch cache read failed, falling back to network', err);
         }
 
-        log('MISS (fetch)', url, '(Not in DB)');
-        return originalFetch.apply(this, arguments);
+        log('MISS (fetch)', url, '(Saving on response)');
+        try {
+            const networkResponse = await originalFetch.apply(this, arguments);
+            if (networkResponse.ok) {
+                try {
+                    const cloned = networkResponse.clone();
+                    const text = await cloned.text();
+                    DB.put(dbKeyToUse, text);
+                    log('INFO', `Auto-cached fetch response for ${dbKeyToUse}`);
+                } catch (e) { }
+            }
+            return networkResponse;
+        } catch (e) {
+            throw e;
+        }
     };
+ 
+    // --- 1.2 Beacon Interceptor ---
+    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+        const originalSendBeacon = navigator.sendBeacon.bind(navigator);
+        navigator.sendBeacon = function(url, data) {
+            if (isTelemetry(url)) {
+                log('SILENCE (beacon)', url);
+                reportSavings(1024, 80, true);
+                return true;
+            }
+            return originalSendBeacon(url, data);
+        };
+    }
 
     // --- 2. UI Logic ---
     function initRoomClearer() {
@@ -325,16 +466,16 @@
                             let target = scope;
                             for (let i = 0; i < parts.length - 1; i++) target = target[parts[i]];
                             if (target) {
-                                target[parts[parts.length-1]] = null; 
-                                scope.$apply(); 
+                                target[parts[parts.length - 1]] = null;
+                                scope.$apply();
                             }
-                        } catch(err) {}
+                        } catch (err) { }
                     });
                 }, 100);
             }
         }, true);
     }
-    
+
     if (document.readyState === 'complete') initRoomClearer();
     else window.addEventListener('load', initRoomClearer);
 
@@ -345,7 +486,7 @@
             const db = await DB.open();
             const tx = db.transaction(STORE_NAME, 'readonly');
             const store = tx.objectStore(STORE_NAME);
-            
+
             const getAllKeysReq = store.getAllKeys();
 
             getAllKeysReq.onsuccess = () => {
@@ -357,7 +498,7 @@
                     if (!keys || !values) return;
 
                     let stats = { locations: 0, statuses: 0, rooms: [] };
-                    let locationMap = {}; 
+                    let locationMap = {};
 
                     values.forEach((entry, i) => {
                         const url = keys[i];
@@ -369,7 +510,7 @@
                                 items.forEach(loc => {
                                     if (loc.LocationId) locationMap[loc.LocationId] = loc.Name || "Unknown";
                                 });
-                            } catch(e) {}
+                            } catch (e) { }
                         }
                     });
 
@@ -386,18 +527,18 @@
                                 if (!roomMatch) roomMatch = url.match(DETECTORS.ROOMS_SEARCH);
                                 if (roomMatch && roomMatch[1]) {
                                     const schoolId = roomMatch[1];
-                                    const schoolName = locationMap[schoolId] || `ID: ${schoolId.substr(0,8)}...`;
+                                    const schoolName = locationMap[schoolId] || `ID: ${schoolId.substr(0, 8)}...`;
                                     stats.rooms.push({ name: schoolName, count: count });
                                 }
                             }
-                        } catch(e) {}
+                        } catch (e) { }
                     });
 
                     stats.rooms.sort((a, b) => a.name.localeCompare(b.name));
                     window.postMessage({ type: 'SMOOTHIIQ_STATS_DATA', stats: stats }, '*');
                 };
             };
-        } catch(e) { console.error("Stats Error", e); }
+        } catch (e) { console.error("Stats Error", e); }
     }
 
 
@@ -416,9 +557,9 @@
                 await DB.put(url, txt);
                 log('INFO', `Cached: ${url}`);
                 return txt;
-            } catch(e) { 
+            } catch (e) {
                 log('MISS', `Failed to fetch ${url}`, e);
-                return null; 
+                return null;
             }
         };
 
@@ -428,7 +569,7 @@
 
         if (queue.length === 0 && !force) {
             broadcastSyncSuccess();
-            return; 
+            return;
         }
 
         notifyUI("Initializing Cache Sync...", true, 0, 0, 0);
@@ -436,7 +577,7 @@
         for (let i = 0; i < queue.length; i++) {
             const url = queue[i];
             const catPct = Math.round(((i) / queue.length) * 100);
-            const globalPct = Math.round(((i) / queue.length) * 10); 
+            const globalPct = Math.round(((i) / queue.length) * 10);
 
             notifyUI(`Fetching Core Lists... ${i + 1}/${queue.length}`, true, 0, globalPct, catPct);
 
@@ -460,7 +601,7 @@
                         }
                     }
                 }
-            } catch(e) {}
+            } catch (e) { }
         }
 
         if (roomQueue.length === 0) {
@@ -489,7 +630,7 @@
     }
 
     // --- 5. Command Listener ---
-    window.addEventListener('message', function(event) {
+    window.addEventListener('message', function (event) {
         if (event.source !== window || !event.data || typeof event.data !== 'object') return;
         if (event.data.type === 'SMOOTHIIQ_CMD_SET_ENABLED') {
             interceptorEnabled = event.data.enabled !== false;
