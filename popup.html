@@ -118,6 +118,50 @@
       opacity: 1;
     }
 
+    .non-iiq-notice {
+      width: 100%;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e40af;
+      border-radius: 10px;
+      padding: 12px 10px;
+      box-sizing: border-box;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .non-iiq-title {
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: #1e3a8a;
+    }
+
+    .non-iiq-desc {
+      margin: 0 0 10px 0;
+      color: #3b82f6;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .tenant-link {
+      display: inline-block;
+      background: #2563eb;
+      color: white !important;
+      font-weight: 600;
+      font-size: 12px;
+      padding: 7px 14px;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
+    }
+
+    .tenant-link:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+    }
+
     .message {
       font-size: 14px;
       color: #555;
@@ -404,6 +448,12 @@
         <a id="updateLink" class="update-link github-link" href="#" target="_blank" rel="noopener noreferrer">View on
           GitHub Releases</a>
       </div>
+    </div>
+
+    <div id="nonIIQNotice" class="non-iiq-notice hidden">
+      <div class="non-iiq-title">Site Inactive</div>
+      <p class="non-iiq-desc">SmoothIIQ only runs on IncidentIQ portals (<strong>*.incidentiq.com</strong>).</p>
+      <a id="tenantLink" class="tenant-link" href="https://incidentiq.com" target="_blank" rel="noopener noreferrer">Launch IncidentIQ &rarr;</a>
     </div>
 
     <button id="toggleButton" class="toggle-button">Pause Optimization</button>

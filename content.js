@@ -14,6 +14,12 @@ chrome.storage.onChanged.addListener(function (changes) {
 
 maybeShowOutdatedToastOnRefresh();
 
+try {
+  if (window.location && window.location.origin && window.location.origin.includes('incidentiq.com')) {
+    chrome.storage.local.set({ lastKnownTenantUrl: window.location.origin });
+  }
+} catch (e) { }
+
 // 4. Message Handling
 window.addEventListener('message', function (event) {
   if (event.source !== window || !event.data || typeof event.data !== 'object') return;

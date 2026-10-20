@@ -3,7 +3,7 @@
 
 (function () {
     let interceptorEnabled = true;
-    const CACHE_STATUS_TYPES = true;
+    const CACHE_STATUS_TYPES = false;
 
     const CACHE_DURATION_MS = 60 * 60 * 1000; // 60 Minutes
     const CHECK_INTERVAL_MS = 15 * 60 * 1000; // Check every 15 minutes
@@ -133,6 +133,10 @@
                     dbInstance = e.target.result;
                     dbInstance.onclose = () => { dbInstance = null; };
                     dbInstance.onerror = () => { dbInstance = null; };
+                    try {
+                        const cleanupTx = dbInstance.transaction(STORE_NAME, 'readwrite');
+                        cleanupTx.objectStore(STORE_NAME).delete(CANONICAL.STATUS);
+                    } catch(err) {}
                     resolve(dbInstance);
                 };
                 request.onerror = (e) => reject(e);

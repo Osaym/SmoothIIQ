@@ -22,6 +22,24 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  // Detect active tab and render appropriate context UI
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    const activeTab = tabs && tabs[0];
+    const isIIQ = !!(activeTab && activeTab.url && activeTab.url.includes('incidentiq.com'));
+
+    if (isIIQ && activeTab.url) {
+      try {
+        const origin = new URL(activeTab.url).origin;
+        chrome.storage.local.set({ lastKnownTenantUrl: origin });
+      } catch (e) { }
+    }
+
+    chrome.storage.local.get('lastKnownTenantUrl', function (data) {
+      const tenantUrl = data.lastKnownTenantUrl || 'https://incidentiq.com';
+      renderTabContext(isIIQ, tenantUrl);
+    });
+  });
+
   // 2. Initialize Cache Status & Request Update
   updateCacheStatus();
   requestStatsUpdate();
@@ -520,15 +538,19 @@ function handleExport() {
         token: token,
         exportedAt: new Date().toISOString()
       };
-      const blob = new Blob([JSON.stringify(backupPayload, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
+      const jsonStr = JSON.stringify(backupPayload, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(jsonStr);
       const a = document.createElement('a');
+      a.href = dataUri;
       const now = new Date();
       const pad = (n) => String(n).padStart(2, '0');
       const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
       a.download = `SmoothIIQ-metrics-${timestamp}.json`;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => {
+        if (a.parentNode) a.parentNode.removeChild(a);
+      }, 500);
     } catch (e) { }
   });
 }
@@ -574,6 +596,39 @@ function updateUI(isEnabled) {
       toggleButton.textContent = 'Re-enable Optimization';
       toggleButton.classList.add('disabled');
       message.innerHTML = "Optimization is paused!<br>Click below to re-enable.";
+    }
+  }
+}
+
+function renderTabContext(isIIQ, tenantUrl) {
+  const toggleButton = document.getElementById('toggleButton');
+  const message = document.querySelector('.message');
+  const cacheControl = document.querySelector('.cache-control');
+  const nonIIQNotice = document.getElementById('nonIIQNotice');
+  const tenantLink = document.getElementById('tenantLink');
+
+  if (isIIQ) {
+    if (toggleButton) toggleButton.classList.remove('hidden');
+    if (message) message.classList.remove('hidden');
+    if (cacheControl) cacheControl.classList.remove('hidden');
+    if (nonIIQNotice) nonIIQNotice.classList.add('hidden');
+  } else {
+    if (toggleButton) toggleButton.classList.add('hidden');
+    if (message) message.classList.add('hidden');
+    if (cacheControl) cacheControl.classList.add('hidden');
+    if (nonIIQNotice) {
+      nonIIQNotice.classList.remove('hidden');
+      if (tenantLink) {
+        tenantLink.href = tenantUrl;
+        let hostDisplay = 'IncidentIQ';
+        try {
+          const parsedHost = new URL(tenantUrl).hostname;
+          if (parsedHost && parsedHost !== 'incidentiq.com') {
+            hostDisplay = parsedHost;
+          }
+        } catch (e) { }
+        tenantLink.textContent = `Launch ${hostDisplay} \u2192`;
+      }
     }
   }
 }
