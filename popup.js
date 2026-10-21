@@ -573,11 +573,11 @@ function loadAndRenderAggregateMetrics(callback) {
     if (badge) {
       badge.classList.remove('hidden');
       if (deviceCount > 1) {
-        badge.textContent = `☁️ ${deviceCount} devices`;
-        badge.title = `Aggregated across ${deviceCount} devices via Chrome Sync`;
+        badge.textContent = `🔄 ${deviceCount} devices synced`;
+        badge.title = `Aggregated across ${deviceCount} devices via your Chrome profile`;
       } else {
-        badge.textContent = `☁️ Synced`;
-        badge.title = `Cloud synchronized with your Google Account`;
+        badge.textContent = `🔄 Device Sync`;
+        badge.title = `Syncs metrics across devices signed into your Chrome profile`;
       }
     }
 
