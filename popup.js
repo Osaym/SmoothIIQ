@@ -44,14 +44,9 @@ document.addEventListener('DOMContentLoaded', function () {
   updateCacheStatus();
   requestStatsUpdate();
 
-  chrome.storage.onChanged.addListener(function (changes) {
-    if (changes.savingsStats) {
-      renderSavings(changes.savingsStats.newValue);
-    }
-    if (changes.timeSpentOnIIQ || changes.installDate) {
-      chrome.storage.local.get(['installDate', 'timeSpentOnIIQ'], function (d) {
-        renderMeta(d.installDate, d.timeSpentOnIIQ);
-      });
+  chrome.storage.onChanged.addListener(function (changes, areaName) {
+    if (changes.savingsStats || changes.timeSpentOnIIQ || changes.installDate || areaName === 'sync') {
+      loadAndRenderAggregateMetrics();
     }
     if (changes.cacheStats) {
       renderStats(changes.cacheStats.newValue);
@@ -64,18 +59,16 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
-  chrome.storage.local.get(['cacheStats', 'savingsStats', 'installDate', 'timeSpentOnIIQ'], function (data) {
+  chrome.storage.local.get(['cacheStats', 'installDate'], function (data) {
     if (data.cacheStats) {
       renderStats(data.cacheStats);
     }
-    renderSavings(data.savingsStats);
-
     let installDate = data.installDate;
     if (!installDate) {
       installDate = Date.now();
       chrome.storage.local.set({ installDate: installDate });
     }
-    renderMeta(installDate, data.timeSpentOnIIQ || 0);
+    loadAndRenderAggregateMetrics();
   });
 
   checkForUpdates(false);
@@ -121,9 +114,29 @@ document.addEventListener('DOMContentLoaded', function () {
   const resetSavingsBtn = document.getElementById('resetSavingsBtn');
   if (resetSavingsBtn) {
     resetSavingsBtn.addEventListener('click', function () {
-      chrome.storage.local.set({ savingsStats: { bytes: 0, timeMs: 0, requests: 0, trackers: 0 } }, function () {
-        renderSavings({ bytes: 0, timeMs: 0, requests: 0, trackers: 0 });
-        showFeedback("Metrics reset to zero.");
+      chrome.storage.local.set({
+        savingsStats: { bytes: 0, timeMs: 0, requests: 0, trackers: 0 },
+        timeSpentOnIIQ: 0
+      }, function () {
+        if (chrome.storage && chrome.storage.sync) {
+          try {
+            chrome.storage.sync.get(null, function (syncItems) {
+              const devKeys = Object.keys(syncItems || {}).filter(k => k.startsWith('siiq_dev_'));
+              if (devKeys.length > 0) {
+                chrome.storage.sync.remove(devKeys, function () {
+                  loadAndRenderAggregateMetrics();
+                });
+              } else {
+                loadAndRenderAggregateMetrics();
+              }
+            });
+          } catch (e) {
+            loadAndRenderAggregateMetrics();
+          }
+        } else {
+          loadAndRenderAggregateMetrics();
+        }
+        showFeedback("Metrics reset across all devices.");
       });
     });
   }
@@ -488,11 +501,120 @@ async function verifyAndParseToken(input) {
   return data;
 }
 
+function loadAndRenderAggregateMetrics(callback) {
+  if (!chrome.storage) return;
+
+  function calculateAndRender(syncData, localData) {
+    const myDeviceId = localData.siiq_device_id;
+    const myKey = myDeviceId ? `siiq_dev_${myDeviceId}` : null;
+    const deviceMap = {};
+
+    if (syncData && typeof syncData === 'object') {
+      for (const [k, v] of Object.entries(syncData)) {
+        if (k.startsWith('siiq_dev_') && v && typeof v === 'object') {
+          deviceMap[k] = v;
+        }
+      }
+    }
+
+    // Always represent current device with freshest local data
+    if (myKey) {
+      deviceMap[myKey] = {
+        bytes: (localData.savingsStats && localData.savingsStats.bytes) || 0,
+        timeMs: (localData.savingsStats && localData.savingsStats.timeMs) || 0,
+        requests: (localData.savingsStats && localData.savingsStats.requests) || 0,
+        trackers: (localData.savingsStats && localData.savingsStats.trackers) || 0,
+        timeSpentOnIIQ: Number(localData.timeSpentOnIIQ) || 0,
+        installDate: localData.installDate || Date.now(),
+        lastUpdated: Date.now()
+      };
+    }
+
+    const devices = Object.values(deviceMap);
+    const deviceCount = devices.length;
+
+    let aggBytes = 0;
+    let aggTimeMs = 0;
+    let aggRequests = 0;
+    let aggTrackers = 0;
+    let aggTimeSpent = 0;
+    let earliestInstall = Number(localData.installDate) || Date.now();
+
+    if (devices.length > 0) {
+      for (const dev of devices) {
+        aggBytes += (Number(dev.bytes) || 0);
+        aggTimeMs += (Number(dev.timeMs) || 0);
+        aggRequests += (Number(dev.requests) || 0);
+        aggTrackers += (Number(dev.trackers) || 0);
+        aggTimeSpent += (Number(dev.timeSpentOnIIQ) || 0);
+        if (dev.installDate && Number(dev.installDate) < earliestInstall) {
+          earliestInstall = Number(dev.installDate);
+        }
+      }
+    } else {
+      aggBytes = (localData.savingsStats && localData.savingsStats.bytes) || 0;
+      aggTimeMs = (localData.savingsStats && localData.savingsStats.timeMs) || 0;
+      aggRequests = (localData.savingsStats && localData.savingsStats.requests) || 0;
+      aggTrackers = (localData.savingsStats && localData.savingsStats.trackers) || 0;
+      aggTimeSpent = Number(localData.timeSpentOnIIQ) || 0;
+    }
+
+    const aggregateSavings = {
+      bytes: aggBytes,
+      timeMs: aggTimeMs,
+      requests: aggRequests,
+      trackers: aggTrackers
+    };
+
+    renderSavings(aggregateSavings);
+    renderMeta(earliestInstall, aggTimeSpent);
+
+    const badge = document.getElementById('syncDeviceBadge');
+    if (badge) {
+      badge.classList.remove('hidden');
+      if (deviceCount > 1) {
+        badge.textContent = `☁️ ${deviceCount} devices`;
+        badge.title = `Aggregated across ${deviceCount} devices via Chrome Sync`;
+      } else {
+        badge.textContent = `☁️ Synced`;
+        badge.title = `Cloud synchronized with your Google Account`;
+      }
+    }
+
+    if (typeof callback === 'function') {
+      callback({
+        savingsStats: aggregateSavings,
+        timeSpentOnIIQ: aggTimeSpent,
+        installDate: earliestInstall,
+        deviceCount: deviceCount
+      });
+    }
+  }
+
+  if (chrome.storage.sync) {
+    try {
+      chrome.storage.sync.get(null, function (syncItems) {
+        chrome.storage.local.get(['savingsStats', 'timeSpentOnIIQ', 'installDate', 'siiq_device_id'], function (localItems) {
+          calculateAndRender(syncItems, localItems);
+        });
+      });
+    } catch (e) {
+      chrome.storage.local.get(['savingsStats', 'timeSpentOnIIQ', 'installDate', 'siiq_device_id'], function (localItems) {
+        calculateAndRender({}, localItems);
+      });
+    }
+  } else {
+    chrome.storage.local.get(['savingsStats', 'timeSpentOnIIQ', 'installDate', 'siiq_device_id'], function (localItems) {
+      calculateAndRender({}, localItems);
+    });
+  }
+}
+
 function handleExport() {
-  chrome.storage.local.get(['savingsStats', 'installDate', 'timeSpentOnIIQ'], async function (data) {
-    const s = data.savingsStats || { bytes: 0, timeMs: 0, requests: 0, trackers: 0 };
-    const installDate = data.installDate || Date.now();
-    const timeSpentOnIIQ = data.timeSpentOnIIQ || 0;
+  loadAndRenderAggregateMetrics(async function (aggData) {
+    const s = (aggData && aggData.savingsStats) || { bytes: 0, timeMs: 0, requests: 0, trackers: 0 };
+    const installDate = (aggData && aggData.installDate) || Date.now();
+    const timeSpentOnIIQ = (aggData && aggData.timeSpentOnIIQ) || 0;
 
     const exportData = {
       installDate: installDate,
@@ -569,14 +691,36 @@ async function handleImport() {
       trackers: verifiedData.trackers
     };
 
-    chrome.storage.local.set({
-      savingsStats: newSavings,
-      installDate: verifiedData.installDate,
-      timeSpentOnIIQ: verifiedData.timeSpentOnIIQ
-    }, function () {
-      renderSavings(newSavings);
-      renderMeta(verifiedData.installDate, verifiedData.timeSpentOnIIQ);
-      showFeedback("✓ Verified & restored successfully!");
+    chrome.storage.local.get('siiq_device_id', function (devData) {
+      let devId = devData && devData.siiq_device_id;
+      if (!devId) {
+        devId = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 8);
+        chrome.storage.local.set({ siiq_device_id: devId });
+      }
+
+      chrome.storage.local.set({
+        savingsStats: newSavings,
+        installDate: verifiedData.installDate,
+        timeSpentOnIIQ: verifiedData.timeSpentOnIIQ
+      }, function () {
+        if (chrome.storage && chrome.storage.sync) {
+          try {
+            chrome.storage.sync.set({
+              [`siiq_dev_${devId}`]: {
+                bytes: newSavings.bytes,
+                timeMs: newSavings.timeMs,
+                requests: newSavings.requests,
+                trackers: newSavings.trackers,
+                timeSpentOnIIQ: verifiedData.timeSpentOnIIQ,
+                installDate: verifiedData.installDate,
+                lastUpdated: Date.now()
+              }
+            });
+          } catch (e) { }
+        }
+        loadAndRenderAggregateMetrics();
+        showFeedback("✓ Verified & restored successfully!");
+      });
     });
   } catch (err) {
     showFeedback(`❌ ${err.message || "Invalid or tampered token."}`);

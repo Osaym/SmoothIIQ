@@ -20,7 +20,8 @@
 - **Export & Import (Bragging Rights & Backup)**:
   - **Export**: Copies a formatted bragging report directly to your clipboard (ready to paste into Google Docs, Slack, or email) and automatically downloads a JSON backup file.
   - **Import**: Allows restoring your cumulative metrics on a new machine or browser profile by pasting the backup JSON or exported report.
-- **Persistent & Resettable**: Stats accumulate across sessions in `chrome.storage.local` with an in-popup **Reset** button for testing.
+- **Multi-Device Cloud Sync**: Automatically aggregates your performance metrics across all machines signed into your Google Chrome profile via `chrome.storage.sync` with device isolation and conflict-free merging.
+- **Persistent & Resettable**: Stats accumulate across sessions in `chrome.storage.local` and Chrome Sync, with an in-popup **Reset** button.
 
 ### ⌨️ Power-User Keyboard Shortcuts
 - **Rapid Save (`Cmd + Enter` on Mac / `Ctrl + Enter` on Windows/Linux)**:

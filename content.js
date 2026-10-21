@@ -97,12 +97,74 @@ function flushSavings() {
         trackers: (current.trackers || 0) + toFlush.trackers,
         lastUpdated: Date.now()
       };
-      chrome.storage.local.set({ savingsStats: updated });
+      chrome.storage.local.set({ savingsStats: updated }, function () {
+        queueSyncPush();
+      });
     });
   } catch (e) { }
 }
 
-window.addEventListener('beforeunload', flushSavings);
+// --- Multi-Device Cloud Sync Engine ---
+function getOrCreateDeviceId(callback) {
+  try {
+    chrome.storage.local.get('siiq_device_id', function (data) {
+      if (data && data.siiq_device_id) {
+        callback(data.siiq_device_id);
+      } else {
+        const newId = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 8);
+        chrome.storage.local.set({ siiq_device_id: newId }, function () {
+          callback(newId);
+        });
+      }
+    });
+  } catch (e) {
+    callback('dev_local');
+  }
+}
+
+let syncPushThrottler = null;
+
+function queueSyncPush() {
+  if (syncPushThrottler) return;
+  syncPushThrottler = setTimeout(() => {
+    syncPushThrottler = null;
+    pushCurrentDeviceToSync();
+  }, 15000); // 15-second debounce to stay well within Chrome Sync rate quotas
+}
+
+function pushCurrentDeviceToSync() {
+  if (!isExtensionValid() || !chrome.storage || !chrome.storage.sync) return;
+
+  getOrCreateDeviceId(function (deviceId) {
+    chrome.storage.local.get(['savingsStats', 'timeSpentOnIIQ', 'installDate'], function (data) {
+      if (!isExtensionValid()) return;
+      const key = `siiq_dev_${deviceId}`;
+      const payload = {
+        bytes: (data.savingsStats && data.savingsStats.bytes) || 0,
+        timeMs: (data.savingsStats && data.savingsStats.timeMs) || 0,
+        requests: (data.savingsStats && data.savingsStats.requests) || 0,
+        trackers: (data.savingsStats && data.savingsStats.trackers) || 0,
+        timeSpentOnIIQ: Number(data.timeSpentOnIIQ) || 0,
+        installDate: data.installDate || Date.now(),
+        lastUpdated: Date.now()
+      };
+
+      try {
+        chrome.storage.sync.set({ [key]: payload }, function () {
+          if (chrome.runtime.lastError) {
+            // Ignore sync errors gracefully
+          }
+        });
+      } catch (e) { }
+    });
+  });
+}
+
+window.addEventListener('beforeunload', function () {
+  flushSavings();
+  flushActiveTime();
+  pushCurrentDeviceToSync();
+});
 
 // --- Active Time on iiQ Tracker (Multi-Tab Safe + Idle Detection) ---
 let activeTimeTimer = null;
@@ -162,7 +224,9 @@ function flushActiveTime() {
       if (!data.installDate) {
         updates.installDate = Date.now();
       }
-      chrome.storage.local.set(updates);
+      chrome.storage.local.set(updates, function () {
+        queueSyncPush();
+      });
     });
   } catch (e) {
     if (activeTimeTimer) {

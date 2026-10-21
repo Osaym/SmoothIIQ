@@ -300,6 +300,25 @@
       color: #065f46;
       text-transform: uppercase;
       text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .sync-device-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      background: #d1fae5;
+      color: #065f46;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 4px;
+      text-transform: none;
+      letter-spacing: 0;
+      vertical-align: middle;
+      border: 1px solid #a7f3d0;
     }
 
     .reset-stats-btn {
@@ -460,7 +479,7 @@
 
     <div class="savings-card">
       <div class="savings-header-row">
-        <div class="savings-title">Performance Impact</div>
+        <div class="savings-title">Performance Impact <span id="syncDeviceBadge" class="sync-device-badge hidden">☁️ Synced</span></div>
         <button id="resetSavingsBtn" class="reset-stats-btn" title="Reset cumulative stats">Reset</button>
       </div>
       <div class="savings-grid">
